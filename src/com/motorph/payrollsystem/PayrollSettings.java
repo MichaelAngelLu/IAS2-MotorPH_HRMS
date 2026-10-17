@@ -295,6 +295,7 @@ public class PayrollSettings extends JFrame {
 	        			}
 //	        		}
 	        } writer.close();
+	        AuditLogger.log("PASSWORD_CHANGED", "Employee " + UserLogin.user + " changed password");
 		} catch (FileNotFoundException e) {
 	        e.printStackTrace();
 	    } catch (IOException e) {

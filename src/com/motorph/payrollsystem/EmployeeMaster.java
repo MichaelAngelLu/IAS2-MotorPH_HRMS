@@ -360,6 +360,7 @@ public class EmployeeMaster extends JFrame {
 							
 							employeeCount--;
 							updateCsv(i);
+							AuditLogger.log("EMPLOYEE_DELETED", "Deleted employee record " + employee[i].employeeNumber);
 							DefaultTableModel model = (DefaultTableModel) table.getModel();
 							int[] selectedRows = table.getSelectedRows();
 							for (i = selectedRows.length - 1; i >= 0; i--) {
@@ -541,6 +542,8 @@ public class EmployeeMaster extends JFrame {
 		}
 		
 		leave[(leaveCount - 1) - selectedRow].leaveStatus = "Approved";
+		AuditLogger.log("LEAVE_APPROVED", "Approved " + leave[(leaveCount - 1) - selectedRow].leaveType
+				+ " of employee " + leave[(leaveCount - 1) - selectedRow].employeeNumber);
 		
 		// Update CSV
 		try (PrintWriter writer = new PrintWriter("csv/AppliedLeaves.csv")) {
@@ -564,6 +567,8 @@ public class EmployeeMaster extends JFrame {
 		}
 		
 		leave[(leaveCount - 1) - selectedRow].leaveStatus = "Rejected";
+		AuditLogger.log("LEAVE_REJECTED", "Rejected " + leave[(leaveCount - 1) - selectedRow].leaveType
+				+ " of employee " + leave[(leaveCount - 1) - selectedRow].employeeNumber);
 		
 		// Update CSV
 		try (PrintWriter writer = new PrintWriter("csv/AppliedLeaves.csv")) {
@@ -586,6 +591,8 @@ public class EmployeeMaster extends JFrame {
 			return;
 		}
 		int selectedIndex = (leaveCount - 1) - selectedRow;
+		AuditLogger.log("LEAVE_DELETED", "Deleted " + leave[selectedIndex].leaveType
+				+ " application of employee " + leave[selectedIndex].employeeNumber);
 		leave[selectedIndex] = null;
 		
 		leaveCount--;
