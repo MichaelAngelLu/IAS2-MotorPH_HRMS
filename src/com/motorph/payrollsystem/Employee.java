@@ -8,6 +8,7 @@ import java.io.BufferedReader;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
+
 import javax.swing.ImageIcon;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
@@ -32,9 +33,7 @@ public class Employee extends JFrame {
 	
 	JPanel personalInfoPanel, salaryInfoPanel;
 	
-	private String path = "csv/EmployeeDetails.csv", line = "";
-	protected EmployeeDetails[] employee = new EmployeeDetails[25];
-	private static int user, minus = 10001;
+	private EmployeeDetails me;   // the signed-in employee's own record, loaded from Supabase
 	
 	public Employee() {
 		// Swing components
@@ -59,7 +58,7 @@ public class Employee extends JFrame {
 		txtEmployeeNo = new JTextField(20);
 		txtEmployeeNo.setEnabled(false);
 		txtEmployeeNo.setDisabledTextColor(new Color(128, 128, 128));
-		txtEmployeeNo.setText(UserLogin.user);
+		txtEmployeeNo.setText(String.valueOf(SessionManager.employeeNumber()));
 		
 		txtLastName = new JTextField(20);
 		txtLastName.setEnabled(false);
@@ -276,82 +275,48 @@ public class Employee extends JFrame {
 		
 	}
 	
-	public void readCsvFile() {
-		//Read from EmployeeDetails.csv
-		if (UserLogin.user != null) {
-		user = Integer.parseInt(UserLogin.user);
-		}
-		try {
-	        BufferedReader br = new BufferedReader(new FileReader(path));
-	        int i = 0;
+	/** Loads the signed-in employee's own record. RLS guarantees only their own row can be returned. */
+	private boolean loadMyRecord() {
+    try {
+        me = EmployeeRepository.findById(SessionManager.employeeNumber());
+        if (me == null) {
+            JOptionPane.showMessageDialog(null, "Your employee record could not be found.",
+                    "Error", JOptionPane.ERROR_MESSAGE);
+            return false;
+        }
+        return true;
+    } catch (SupabaseClient.SupabaseException ex) {
+        JOptionPane.showMessageDialog(null, "Could not load your record: " + ex.getMessage(),
+                "Error", JOptionPane.ERROR_MESSAGE);
+        return false;
+    }
+}
 
-	        while ((line = br.readLine()) != null) {
-
-	            String[] values = line.split(",");
-	            
-	         // check if any value is empty or null
-	            boolean hasEmptyValue = false;
-	            for (String value : values) {
-	                if (value == null || value.isEmpty()) {
-	                    hasEmptyValue = true;
-	                    break;
-	                }
-	            }
-
-	            	if (hasEmptyValue) {
-	                // skip this line
-	                continue;
-	            }
-	            employee[i] = new EmployeeDetails(values[0], values[1], values[2], values[3], values[4], values[5],
-	                    values[6], values[7], values[8], values[9], values[10], values[11], values[12], values[13],
-	                    values[14], values[15], values[16], values[17], values[18]);
-	            
-	            i++;
-	        }
-	        br.close();
-		} catch (FileNotFoundException e) {
-	        e.printStackTrace();
-	    } catch (IOException e) {
-			e.printStackTrace();
-		} 
-	}
-	
 	public void displayPersonalInfo() {
-		readCsvFile();
-		txtLastName.setText(employee[user - minus].lname);
-		txtFirstName.setText(employee[user - minus].fname);
-		txtBirthday.setText(employee[user - minus].bday);
-		txtAddress.setText(employee[user - minus].address);
-		txtPhoneNo.setText(employee[user - minus].phoneNumber);
-		txtSssNo.setText(employee[user - minus].sssNumber);
-		txtPhic.setText(employee[user - minus].philHealthNumber);
-		txtTinNo.setText(employee[user - minus].tinNumber);
-		txtHdmfNo.setText(employee[user - minus].pagIbigNumber);
-//    	setContentPane(personalInfoPanel);
-//    	setVisible(true);
-//    	// Repaint the frame
-//        revalidate();
-//        repaint();
-		
+    	if (!loadMyRecord()) return;
+    	txtLastName.setText(me.lname);
+    	txtFirstName.setText(me.fname);
+    	txtBirthday.setText(me.bday);
+    	txtAddress.setText(me.address);
+    	txtPhoneNo.setText(me.phoneNumber);
+    	txtSssNo.setText(me.sssNumber);
+    	txtPhic.setText(me.philHealthNumber);
+    	txtTinNo.setText(me.tinNumber);
+    	txtHdmfNo.setText(me.pagIbigNumber);
 	}
-	
+
 	public void displaySalaryRecords() {
-		readCsvFile();
-		txtSalEmployeeNo.setText(user + "");
-		txtEmployeeStats.setText(employee[user - minus].status);
-		txtEmployeePosition.setText(employee[user - minus].position);
-		txtSalaryClass.setText(employee[user - minus].basicSalary);
-		txtBasicSalary.setText("PHP " + employee[user - minus].basicSalary + ".00");
-		txtRiceSubsidy.setText("PHP " + employee[user - minus].riceSubsidy + ".00");
-		txtPhoneAllowance.setText("PHP " + employee[user - minus].phoneAllowance + ".00");
-		txtClothingAllowance.setText("PHP " + employee[user - minus].clothingAllowance + ".00");
-//		setContentPane(salaryInfoPanel);
-//    	setVisible(true);
-//    	// Repaint the frame
-//        revalidate();
-//        repaint();
+    	if (!loadMyRecord()) return;
+    		txtSalEmployeeNo.setText(String.valueOf(SessionManager.employeeNumber()));
+    		txtEmployeeStats.setText(me.status);
+    		txtEmployeePosition.setText(me.position);
+    		txtSalaryClass.setText(me.basicSalary);
+    		txtBasicSalary.setText("PHP " + me.basicSalary + ".00");
+    		txtRiceSubsidy.setText("PHP " + me.riceSubsidy + ".00");
+    		txtPhoneAllowance.setText("PHP " + me.phoneAllowance + ".00");
+    		txtClothingAllowance.setText("PHP " + me.clothingAllowance + ".00");
 	}
 	
-		
-	
+
+
 }

@@ -21,16 +21,10 @@ import java.awt.event.MouseListener;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.awt.image.BufferedImage;
-import java.io.BufferedReader;
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileReader;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.io.PrintWriter;
 import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.List;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.Date;
 import java.text.SimpleDateFormat;
 
@@ -61,19 +55,16 @@ import javax.swing.border.BevelBorder;
 
 public class LeaveApplication extends JFrame {
 
-	String path = "csv/AppliedLeaves.csv",  line = "";
 	SimpleDateFormat formatter = new SimpleDateFormat("MMMM dd yyyy");
 	
 	private static final long serialVersionUID = 1L;
-	private UserLogin login = new UserLogin();
 	JTable table;
 	private JComboBox<Object> comboBoxLeaveType;
 	private JDateChooser txtStartDate, txtEndDate;
 	private String newLeaveDetails[] = new String[6];
-	private LeaveDetails[] leave = new LeaveDetails[50];
-	private int SlCount, VlCount, ElCount, leaveCount, count;
+	private List<LeaveRepository.Row> myLeaves = new ArrayList<>();   // row i of the table = myLeaves.get(i)
+	private int SlCount, VlCount, ElCount;
 	private JTextArea txtLeaveDescription;
-	private Object[][] data;
 	private JButton btnCancel_1;
 	JButton btnCancel;
 	private LeaveDetails deletedLeave;
@@ -90,7 +81,7 @@ public class LeaveApplication extends JFrame {
 //			public void run() {
 //				try {
 //					LeaveApplication frame = new LeaveApplication();
-//					frame.readCsvFiles();
+//					frame.loadLeaves();
 //					frame.setVisible(true);
 //				} catch (Exception e) {
 //					e.printStackTrace();
@@ -100,8 +91,8 @@ public class LeaveApplication extends JFrame {
 //	}
 	
 	public void applyLeave() {
-//		System.out.println(login.getEmployeeNumber());
-		readCsvFiles();
+		txtEmpNo.setText(String.valueOf(SessionManager.employeeNumber()));
+		loadLeaves();
 		setVisible(true);
 	}
 	
@@ -298,7 +289,7 @@ public class LeaveApplication extends JFrame {
 		txtEmpNo = new JTextField();
 		txtEmpNo.setBorder(new LineBorder(new Color(128, 128, 128)));
 		txtEmpNo.setEnabled(false);
-		txtEmpNo.setText(login.getEmployeeNumber());
+		txtEmpNo.setText(String.valueOf(SessionManager.employeeNumber()));
 		txtEmpNo.setEditable(false);
 		txtEmpNo.setBounds(89, 25, 136, 20);
 		txtEmpNo.setDisabledTextColor(new Color(128, 128, 128));
@@ -359,77 +350,27 @@ public class LeaveApplication extends JFrame {
 		btnCancel_1.setEnabled(false);
 		btnCancel_1.setBounds(20, 338, 79, 23);
 		btnCancel_1.addActionListener(new ActionListener() {
-			
+
 			@Override
 			public void actionPerformed(ActionEvent e) {
-				int confirm = JOptionPane.showConfirmDialog(null, "Cancel this leave application?", "Confirm Cancel", JOptionPane.YES_NO_OPTION);
-				if (confirm == JOptionPane.YES_OPTION) {
-				// get the selected row index
 				int rowIndex = table.getSelectedRow();
-				
-				if (rowIndex != -1) {
-				// open the CSV file for writing
+				if (rowIndex < 0 || rowIndex >= myLeaves.size()) {
+					return;
+				}
+				int confirm = JOptionPane.showConfirmDialog(null, "Cancel this leave application?", "Confirm Cancel", JOptionPane.YES_NO_OPTION);
+				if (confirm != JOptionPane.YES_OPTION) {
+					return;
+				}
 				try {
-					File tempFile = new File("temp.csv");
-					BufferedWriter writer = new BufferedWriter(new FileWriter(tempFile));
-
-
-				// loop through the leave array and write to the CSV file
-				for (LeaveDetails leaveDetail : leave) {
-				    // check if leaveDetail is not null
-				    if (leaveDetail != null) {
-				        // check if this is not the row that was edited
-				    	if (leaveDetail.leaveType.equals(table.getValueAt(rowIndex, 0)) &&
-				                leaveDetail.startDate.equals(table.getValueAt(rowIndex, 1)) &&
-				                leaveDetail.endDate.equals(table.getValueAt(rowIndex, 2)) &&
-				                leaveDetail.leaveStatus.equals(table.getValueAt(rowIndex, 3)) &&
-				                leaveDetail.leaveDescription.equals(table.getValueAt(rowIndex, 4))) {
-				                
-				                // write the updated cancelled leave detail to the CSV file
-				                writer.write(leaveDetail.employeeNumber + "," +
-				                    leaveDetail.leaveType + "," +
-				                    leaveDetail.startDate + "," +
-				                    leaveDetail.endDate + "," +
-				                    "Cancelled" + "," +
-				                    leaveDetail.leaveDescription);
-				                writer.newLine();
-				            } else {
-				                // write the original leave detail to the CSV file
-				                writer.write(leaveDetail.employeeNumber + "," +
-				                    leaveDetail.leaveType + "," +
-				                    leaveDetail.startDate + "," +
-				                    leaveDetail.endDate + "," +
-				                    leaveDetail.leaveStatus + "," +
-				                    leaveDetail.leaveDescription);
-				                writer.newLine();
-				        }
-				    }
+					LeaveRepository.cancel(myLeaves.get(rowIndex).id);   // by database id, no CSV rewrite
+				} catch (IllegalStateException | SupabaseClient.SupabaseException ex) {
+					JOptionPane.showMessageDialog(LeaveApplication.this, ex.getMessage(), "Could not cancel", JOptionPane.ERROR_MESSAGE);
+					return;
 				}
-
-				// close the CSV file
-				writer.close();
-				
-				File originalFile = new File(path);
-				if (originalFile.delete()) {
-				    tempFile.renameTo(originalFile);
-				} 
-				
-				} catch (FileNotFoundException ex) {
-			        ex.printStackTrace();
-			    } catch (IOException ex) {
-					ex.printStackTrace();
-				}
-				} else {
-				    // Handle the case where the original file cannot be deleted
-				}
-
-				
 				redirector = new LeavePageRedirector();
 				redirector.redirect();
 				setVisible(false);
 				dispose();
-				}
-				
 			}
 		});
 		getContentPane().add(btnCancel_1);
@@ -451,7 +392,7 @@ public class LeaveApplication extends JFrame {
 	
 	public void checkLeaveDetails() {
 		
-		newLeaveDetails[0] = login.getEmployeeNumber();
+		newLeaveDetails[0] = String.valueOf(SessionManager.employeeNumber());
 		
 		if (comboBoxLeaveType.getSelectedIndex() == 0) {
 			JOptionPane.showMessageDialog(LeaveApplication.this, "      Please select leave type.", "Invalid Input", JOptionPane.INFORMATION_MESSAGE, null);
@@ -496,98 +437,77 @@ public class LeaveApplication extends JFrame {
 			fileLeave();	
 	}
 	
-	public void readCsvFiles() {
-		count = 0;
-		leaveCount = 0;
-		
-		int i = 0;
+	public void loadLeaves() {
+		// The signed-in user's own leaves, newest first. (An admin's list() also returns everyone's, so filter.)
+		String me = String.valueOf(SessionManager.employeeNumber());
+		myLeaves = new ArrayList<>();
 		try {
-	        BufferedReader br = new BufferedReader(new FileReader(path));
-	        while ((line = br.readLine()) != null) {
-
-	            String[] values = line.split(",");
-	            
-	         // check if any value is empty or null
-	            boolean hasEmptyValue = false;
-	            for (String value : values) {
-	                if (value == null || value.isEmpty()) {
-	                    hasEmptyValue = true;
-	                    break;}
-	            }
-	            	if (hasEmptyValue) {
-	                // skip this line
-	                continue;
-	            }
-	            leave[i] = new LeaveDetails(values[0], values[1], values[2], values[3], values[4], values[5]);
-	            count++;
-	            i++;
-	        }
-	        br.close();
-	    } catch (FileNotFoundException e) {
-	        e.printStackTrace();
-	    } catch (IOException e) {
-			e.printStackTrace();
-		}
- 
-	        for (int k = 0; k < leave.length; k++) {
-	        	if (leave[k] != null && leave[k].employeeNumber.equals(login.getEmployeeNumber())) {
-	        		leaveCount++;
-	        		if (leave[k].leaveType.equals("Sick Leave") && !leave[k].leaveStatus.equals("Cancelled")) {
-	        			SlCount++;
-	        		} else if (leave[k].leaveType.equals("Vacation Leave") && !leave[k].leaveStatus.equals("Cancelled")) {
-	        			VlCount++;
-	        		} else if (leave[k].leaveType.equals("Emergency Leave") && !leave[k].leaveStatus.equals("Cancelled")) {
-	        			ElCount++;
-	        		}
-	        	}
-	        }
-	        System.out.println("Leave Count: " + leaveCount + 
-	        			"\n" + "Sick Leaves: " + SlCount +
-	        			"\n" + "Vacation Leaves: " + VlCount +
-	        			"\n" + "Emergency Leaves: " + ElCount + "\n");
-	        
-	        lblSLCount.setText(5- SlCount + "");
-	        lblVLCount.setText(10 - VlCount + "");
-	        lblELCount.setText(5- ElCount + "");
-	        
-	        //Populate JTable with data
-			data = new Object[leaveCount][5];
-			
-			
-			int counter = 0;
-			for (int j = leave.length - 1; j >= 0; j--) {
-			    if (leave[j] != null && leave[j].employeeNumber.equals(login.getEmployeeNumber())) {
-			        data[counter][0] = leave[j].leaveType;
-			        data[counter][1] = leave[j].startDate;
-			        data[counter][2] = leave[j].endDate;
-			        data[counter][3] = leave[j].leaveStatus;
-			        data[counter][4] = leave[j].leaveDescription;
-			        counter++;
-			    }
+			for (LeaveRepository.Row r : LeaveRepository.list()) {
+				if (r.details.employeeNumber.equals(me)) {
+					myLeaves.add(r);
+				}
 			}
+		} catch (SupabaseClient.SupabaseException ex) {
+			JOptionPane.showMessageDialog(this, "Could not load leaves: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+		}
 
-			table.setModel(new DefaultTableModel(
-			    Arrays.copyOfRange(data, 0, counter),
-					
-			    new String[] {
-			        "Leave Type", "Start Date", "End Date", "Leave Status", "Leave Description"
-			    }
-			));
+		// Leaves used per type (cancelled ones don't count)
+		SlCount = 0;
+		VlCount = 0;
+		ElCount = 0;
+		for (LeaveRepository.Row r : myLeaves) {
+			LeaveDetails d = r.details;
+			if (d.leaveStatus.equals("Cancelled")) {
+				continue;
+			}
+			if (d.leaveType.equals("Sick Leave")) {
+				SlCount++;
+			} else if (d.leaveType.equals("Vacation Leave")) {
+				VlCount++;
+			} else if (d.leaveType.equals("Emergency Leave")) {
+				ElCount++;
+			}
+		}
+		lblSLCount.setText(5 - SlCount + "");
+		lblVLCount.setText(10 - VlCount + "");
+		lblELCount.setText(5 - ElCount + "");
 
-			table.getColumnModel().getColumn(4).setPreferredWidth(84);
-			table.repaint();
-	        }
-	
+		// Populate JTable with data (row i of the table = myLeaves.get(i))
+		Object[][] data = new Object[myLeaves.size()][5];
+		for (int j = 0; j < myLeaves.size(); j++) {
+			LeaveDetails d = myLeaves.get(j).details;
+			data[j][0] = d.leaveType;
+			data[j][1] = d.startDate;
+			data[j][2] = d.endDate;
+			data[j][3] = d.leaveStatus;
+			data[j][4] = d.leaveDescription;
+		}
+		table.setModel(new DefaultTableModel(
+			data,
+			new String[] {
+				"Leave Type", "Start Date", "End Date", "Leave Status", "Leave Description"
+			}
+		));
+		table.getColumnModel().getColumn(4).setPreferredWidth(84);
+		table.repaint();
+	}
 	public void fileLeave() {
-		newLeaveDetails[4] = "Applied";
-		
+		try {
+			LocalDate start = txtStartDate.getDate().toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
+			LocalDate end = txtEndDate.getDate().toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
+			LeaveRepository.file(newLeaveDetails[1], start, end, newLeaveDetails[5]);
+		} catch (IllegalArgumentException ex) {          // e.g. end date before start date
+			JOptionPane.showMessageDialog(LeaveApplication.this, ex.getMessage(), "Invalid Dates", JOptionPane.INFORMATION_MESSAGE);
+			return;
+		} catch (SupabaseClient.SupabaseException ex) {
+			JOptionPane.showMessageDialog(LeaveApplication.this, "Could not file leave: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+			return;
+		}
+		// Only tell the user it worked after the database accepted it
 		JOptionPane.showMessageDialog(LeaveApplication.this, "Leave application successful.", "Success", JOptionPane.INFORMATION_MESSAGE);
 		lblDescError.setVisible(false);
-		// Clear fields after successful application
-		updateCsvFiles();
 		clearFields();
 	}
-	
 	public void clearFields() {
 		comboBoxLeaveType.setSelectedIndex(0);
 		txtStartDate.setDate(null);
@@ -596,23 +516,7 @@ public class LeaveApplication extends JFrame {
 		SlCount = 0;
 		VlCount = 0;
 		ElCount = 0;
-		readCsvFiles();
+		loadLeaves();
 	}
 	
-	public void updateCsvFiles() {
-		try {
-			FileWriter fw = new FileWriter("csv/AppliedLeaves.csv", true);
-		    PrintWriter outFile = new PrintWriter(fw);
-				outFile.print(newLeaveDetails[0] + ",");
-				outFile.print(newLeaveDetails[1] + ",");
-				outFile.print(newLeaveDetails[2] + ",");
-				outFile.print(newLeaveDetails[3] + ",");
-				outFile.print(newLeaveDetails[4] + ",");
-				outFile.print(newLeaveDetails[5] + "\n");
-
-			outFile.close();
-		} catch (IOException e) {
-            System.err.println("Error: " + e.getMessage());
-        }	
-	}
 }

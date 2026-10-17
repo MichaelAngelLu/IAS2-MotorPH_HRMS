@@ -493,17 +493,19 @@ public class PayrollSystem extends JFrame {
 	}
 	
 	public void displayPayrollMenu() {
-		printNRead.printRead();
-		lblUsername.setText(PrintNReadTxt.employee[Integer.parseInt(UserLogin.user) - 10001].fname + " " +
-							PrintNReadTxt.employee[Integer.parseInt(UserLogin.user) - 10001].lname);
-		setVisible(true);
-		btnPersonalInfo.doClick();
-		
-		if (!PrintNReadTxt.user[Integer.parseInt(UserLogin.user)-10001].systemRole.equals("Admin")) {
-			lblNewLabel_2_1.setVisible(false);
-			btnEmployeeMaster.setVisible(false);
-			btnUserAccounts.setVisible(false);
-		}
-		
+    	printNRead.printRead();   // keep for now: other screens still use the static arrays it fills
+
+    	// Name in the header: the signed-in user's own record from Supabase
+    	EmployeeDetails me = EmployeeRepository.findById(SessionManager.employeeNumber());
+    	lblUsername.setText(me == null ? "" : me.fname + " " + me.lname);
+    	setVisible(true);
+    	btnPersonalInfo.doClick();
+
+    	// Role comes from Supabase (profiles.role), not from the old CSV
+    	if (!SessionManager.isAdmin()) {
+        	lblNewLabel_2_1.setVisible(false);
+        	btnEmployeeMaster.setVisible(false);
+        	btnUserAccounts.setVisible(false);
+    	}
 	}
 }

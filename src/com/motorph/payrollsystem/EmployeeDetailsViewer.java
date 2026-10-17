@@ -40,7 +40,9 @@ public class EmployeeDetailsViewer extends EmployeeMaster {
 	private JTextField txtImmediateSupervisor;
 	private JTextField txtPosition;
 	
-	private int selection;
+	private int employeeNo;
+	private int selection;         // employee number - 10001; the pay section still indexes the old payroll arrays with it
+	private EmployeeDetails emp;   // the employee shown on screen
 	private JTextField textField_14;
 	private JTextField textField_15;
 	private JTextField textField_18;
@@ -61,39 +63,39 @@ public class EmployeeDetailsViewer extends EmployeeMaster {
 	/**
 	 * Launch the application.
 	 */
-	public  void viewDetails() {
-		readCsvFile();
-		
- 		if (employee[selection].employeeNumber.equals("10001")) {
-			btnEdit.setEnabled(false);
-			System.out.println(selection);
-		} else {
-			btnEdit.setEnabled(true);
-		}
-		// Set Text Commands
-		txtEmployeeNo.setText(employee[selection].employeeNumber);
-		txtLname.setText(employee[selection].lname);
-		txtPhoneNumber.setText(employee[selection].phoneNumber);
-		txtBday.setText(employee[selection].bday);
-		txtAdress.setText(employee[selection].address);
-		txtFname.setText(employee[selection].fname);
-		txtSssNo.setText(employee[selection].sssNumber);
-		txtPhilHealthNo.setText(employee[selection].philHealthNumber);
-		txtTin.setText(employee[selection].tinNumber);
-		txtPagibigNo.setText(employee[selection].pagIbigNumber);
-//		txtStatus.setText(employee[selection].status);
-		
-		int i = -1;
-		if (employee[selection].status.equals("Regular")) {
-			i = 0;
-		} else if (employee[selection].status.equals("Probationary")) {
-			i = 1;
-		}
-		
-		comboBoxStatus.setSelectedIndex(i);
-		txtPosition.setText(employee[selection].position);
-		txtImmediateSupervisor.setText(employee[selection].immediateSupervisor);
-	}
+	public void viewDetails() {
+    	try {
+        	emp = EmployeeRepository.findById(employeeNo);
+    	} catch (SupabaseClient.SupabaseException ex) {
+        	JOptionPane.showMessageDialog(null, "Could not load employee: " + ex.getMessage(),
+                "Error", JOptionPane.ERROR_MESSAGE);
+        	return;
+    	}
+    	if (emp == null) {
+        	JOptionPane.showMessageDialog(null, "Employee record not found.", "Error", JOptionPane.ERROR_MESSAGE);
+        	return;
+    	}
+    	btnEdit.setEnabled(!emp.employeeNumber.equals("10001"));
+
+    	txtEmployeeNo.setText(emp.employeeNumber);
+    	txtLname.setText(emp.lname);
+    	txtPhoneNumber.setText(emp.phoneNumber);
+    	txtBday.setText(emp.bday);
+    	txtAdress.setText(emp.address);
+    	txtFname.setText(emp.fname);
+    	txtSssNo.setText(emp.sssNumber);
+    	txtPhilHealthNo.setText(emp.philHealthNumber);
+    	txtTin.setText(emp.tinNumber);
+    	txtPagibigNo.setText(emp.pagIbigNumber);
+
+    	int i = -1;
+    	if (emp.status.equals("Regular")) i = 0;
+    	else if (emp.status.equals("Probationary")) i = 1;
+    	comboBoxStatus.setSelectedIndex(i);
+
+    	txtPosition.setText(emp.position);
+    	txtImmediateSupervisor.setText(emp.immediateSupervisor);
+}
 
 	/**
 	 * Create the frame.
@@ -525,43 +527,30 @@ public class EmployeeDetailsViewer extends EmployeeMaster {
 				
 				 int confirm = JOptionPane.showConfirmDialog(null, "Save changes?", "Confirm Update", JOptionPane.YES_NO_CANCEL_OPTION);
 	    	        if (confirm == JOptionPane.YES_OPTION) {
-	    	            // Save changes to CSV file
-	    	            
-				btnEdit.setEnabled(true);
-				btnUpdate.setVisible(false);
-				btnCancel.setVisible(false);
-				txtFname.setEnabled(false);
-				txtLname.setEnabled(false);
-				txtBday.setEnabled(false);
-				txtAdress.setEnabled(false);
-				txtPhoneNumber.setEnabled(false);
-				comboBoxStatus.setEnabled(false);
-				txtPosition.setEnabled(false);
-				txtImmediateSupervisor.setEnabled(false);
-				setNewDetails(txtLname.getText(), txtFname.getText(), txtBday.getText(), txtAdress.getText(), 
-						txtPhoneNumber.getText(), (String) comboBoxStatus.getSelectedItem(), txtPosition.getText(), 
-						txtImmediateSupervisor.getText());
-				updateCsv(selection);
-				
-				
-	    	        } else if (confirm == JOptionPane.NO_OPTION) {
-	    	        	cancelUpdate();
-	    	        }
-			}
-		});
-		
-		btnCancel.addActionListener(new ActionListener() {
-			
-			@Override
-			public void actionPerformed(ActionEvent e) {
-				cancelUpdate();
-			}
-		});
+    					boolean saved = saveEmployee(employeeNo, txtLname.getText(), txtFname.getText(), txtBday.getText(),
+            				txtAdress.getText(), txtPhoneNumber.getText(), (String) comboBoxStatus.getSelectedItem(),
+            				txtPosition.getText(), txtImmediateSupervisor.getText());
+    					if (!saved) return;
+
+    					btnEdit.setEnabled(true);
+    					btnUpdate.setVisible(false);
+    					btnCancel.setVisible(false);
+    					txtFname.setEnabled(false);
+    					txtLname.setEnabled(false);
+    					txtBday.setEnabled(false);
+    					txtAdress.setEnabled(false);
+    					txtPhoneNumber.setEnabled(false);
+    					comboBoxStatus.setEnabled(false);
+    					txtPosition.setEnabled(false);
+    					txtImmediateSupervisor.setEnabled(false);
+    					viewDetails();   // reload so the screen shows what was actually stored
+					} else if (confirm == JOptionPane.NO_OPTION) {
+    					cancelUpdate();
+					}}
+	});
 
 		frame.getContentPane().add(btnEdit);
 		frame.getContentPane().add(btnCancel);
-		
-		
 		
 		btnBack.addActionListener(new ActionListener() {
 			
@@ -579,9 +568,10 @@ public class EmployeeDetailsViewer extends EmployeeMaster {
 		
 	}
 	
-	public void setSelection(int selection) {
-        this.selection = selection;
-    }
+	public void setEmployeeNumber(int employeeNo) {
+    	this.employeeNo = employeeNo;
+    	this.selection = employeeNo - 10001;
+	}
 	
 	public void cancelUpdate() {
 		viewDetails();

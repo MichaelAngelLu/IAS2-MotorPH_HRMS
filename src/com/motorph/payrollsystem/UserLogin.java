@@ -182,11 +182,17 @@ public class UserLogin extends JFrame implements ActionListener {
 
 	public void insertData() {
 		user = txtEmployeeNumber.getText();
-		String pass = txtPassword.getText();
+		String pass = new String(txtPassword.getPassword());
 		loggedIn = verifyLogin(user, pass);
 		// Error panel
 
 		if (loggedIn) {
+			// Send users with a flagged password to change their password before proceeding to the main menu
+			if (SessionManager.mustChangePassword()) {
+    			JOptionPane.showMessageDialog(null,
+        		"For security, please change your password now (Settings > Change password).",
+        		"Password Change Required", JOptionPane.INFORMATION_MESSAGE);
+			}
 			// Hides the login window
 			setVisible(false);
 			dispose();
@@ -204,17 +210,8 @@ public class UserLogin extends JFrame implements ActionListener {
 	}
 
 	public boolean verifyLogin(String empNo, String pass) {
-		for (int i = 0; i < PrintNReadTxt.user.length; i++) {
-			if (PrintNReadTxt.user[i] != null) {
-				if (PrintNReadTxt.user[i].employeeNumber.equals(empNo) && PrintNReadTxt.user[i].password.equals(pass)) {
-					return true;
-				} else if (empNo.equals("null") && pass.equals("null")) {
-					return false;
-				}
-			}
-		}
-		return false;
-	}
+    return AuthService.login(empNo, pass);
+}
 
 	@Override
 	public void actionPerformed(ActionEvent e) {
