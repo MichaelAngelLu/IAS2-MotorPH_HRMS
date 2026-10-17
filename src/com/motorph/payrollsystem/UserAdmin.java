@@ -133,6 +133,7 @@ public class UserAdmin extends JFrame {
 		}
 		
 		updateCsv(empNo, newEmp + "", newPass, comboBoxSystemRole.getSelectedItem(), "Active");
+		AuditLogger.log("ACCOUNT_CREATED", "Created " + comboBoxSystemRole.getSelectedItem() + " account for employee " + newEmp);
 		
 		JOptionPane.showMessageDialog(null, "Account for employee " + newEmp + " created.", "Create New Successful", JOptionPane.INFORMATION_MESSAGE);
 		 
@@ -148,6 +149,7 @@ public class UserAdmin extends JFrame {
 		
 		
 		updateCsv(delIndex, null, null, null, null);
+		AuditLogger.log("ACCOUNT_DELETED", "Deleted account for employee " + delEmp);
 		
 		JOptionPane.showMessageDialog(null, "Account for employee " + delEmp + " deleted.", "Delete Successful", JOptionPane.INFORMATION_MESSAGE);
 	}

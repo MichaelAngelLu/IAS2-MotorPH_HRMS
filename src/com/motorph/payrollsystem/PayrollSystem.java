@@ -269,6 +269,11 @@ public class PayrollSystem extends JFrame {
 		btnEmployeeMaster.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
 				
+				if (!isAdmin()) {
+					AuditLogger.log("UNAUTHORIZED_ACCESS", "Non-admin employee " + UserLogin.user + " attempted to open Employee Master");
+					JOptionPane.showMessageDialog(null, "Access denied. Administrator privileges are required.", "Unauthorized", JOptionPane.ERROR_MESSAGE);
+					return;
+				}
 				master.viewEmployeeMaster();
 				setVisible(false);
 //				dispose();
@@ -301,6 +306,11 @@ public class PayrollSystem extends JFrame {
 		btnUserAccounts.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
 				
+				if (!isAdmin()) {
+					AuditLogger.log("UNAUTHORIZED_ACCESS", "Non-admin employee " + UserLogin.user + " attempted to open User Accounts");
+					JOptionPane.showMessageDialog(null, "Access denied. Administrator privileges are required.", "Unauthorized", JOptionPane.ERROR_MESSAGE);
+					return;
+				}
 				chooseButton(btnUserAccounts);
 				switchPanes(paneUserAccounts);
 				userAdmin.findAvailableEmployeeNumbers();
@@ -330,6 +340,7 @@ public class PayrollSystem extends JFrame {
 			public void actionPerformed(ActionEvent e) {
 				int confirm = JOptionPane.showConfirmDialog(null, "Are you sure you want to log out?", "Confirm Log Out", JOptionPane.YES_NO_OPTION);
     	        if (confirm == JOptionPane.YES_OPTION) {
+    	            AuditLogger.log("LOGOUT", "Employee " + UserLogin.user + " logged out");
     	            // Log user out
     	        	setVisible(false);
     	        	dispose();
@@ -484,6 +495,15 @@ public class PayrollSystem extends JFrame {
 				}
 			}
 		});
+	}
+	
+	private boolean isAdmin() {
+		try {
+			UserDetails current = PrintNReadTxt.user[Integer.parseInt(UserLogin.user) - 10001];
+			return current != null && "Admin".equals(current.systemRole);
+		} catch (Exception e) {
+			return false;
+		}
 	}
 	
 	public void openUserLogin() {

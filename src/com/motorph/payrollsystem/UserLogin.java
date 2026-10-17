@@ -187,6 +187,7 @@ public class UserLogin extends JFrame implements ActionListener {
 		// Error panel
 
 		if (loggedIn) {
+			AuditLogger.log("LOGIN_SUCCESS", "Employee " + user + " logged in");
 			// Hides the login window
 			setVisible(false);
 			dispose();
@@ -194,6 +195,7 @@ public class UserLogin extends JFrame implements ActionListener {
 			PayrollSystem payroll = new PayrollSystem();
 			payroll.displayPayrollMenu();
 		} else {
+			AuditLogger.log("LOGIN_FAILED", "Failed login attempt for employee number " + user);
 			// Show error message
 			panel_1.setVisible(true);
 			btnLogin.setBounds(167, 165, 100, 30);

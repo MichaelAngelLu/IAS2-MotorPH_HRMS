@@ -542,6 +542,7 @@ public class EmployeeDetailsViewer extends EmployeeMaster {
 						txtPhoneNumber.getText(), (String) comboBoxStatus.getSelectedItem(), txtPosition.getText(), 
 						txtImmediateSupervisor.getText());
 				updateCsv(selection);
+				AuditLogger.log("EMPLOYEE_UPDATED", "Updated employee record " + employee[selection].employeeNumber);
 				
 				
 	    	        } else if (confirm == JOptionPane.NO_OPTION) {

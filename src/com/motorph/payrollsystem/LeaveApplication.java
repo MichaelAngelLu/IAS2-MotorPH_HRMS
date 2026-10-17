@@ -580,6 +580,8 @@ public class LeaveApplication extends JFrame {
 	
 	public void fileLeave() {
 		newLeaveDetails[4] = "Applied";
+		AuditLogger.log("LEAVE_FILED", "Employee " + newLeaveDetails[0] + " filed " + newLeaveDetails[1]
+				+ " (" + newLeaveDetails[2] + " to " + newLeaveDetails[3] + ")");
 		
 		JOptionPane.showMessageDialog(LeaveApplication.this, "Leave application successful.", "Success", JOptionPane.INFORMATION_MESSAGE);
 		lblDescError.setVisible(false);
