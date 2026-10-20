@@ -34,7 +34,6 @@ public class PayrollSystem extends JFrame {
 	JLayeredPane layeredPane_1;
 	private JScrollPane scrollPane;
 	private JLabel lblUsername, lblNewLabel_2_1;
-	private PrintNReadTxt printNRead;
 	private Employee employee;
 	private EmployeeMaster master;
 	private LeaveApplication fileLeave;
@@ -91,7 +90,6 @@ public class PayrollSystem extends JFrame {
 	 * @throws IOException 
 	 */
 	public PayrollSystem() {
-		printNRead = new PrintNReadTxt();
 		master = new EmployeeMaster();
 		fileLeave = new LeaveApplication();
 		
@@ -493,8 +491,6 @@ public class PayrollSystem extends JFrame {
 	}
 	
 	public void displayPayrollMenu() {
-    	printNRead.printRead();   // keep for now: other screens still use the static arrays it fills
-
     	// Name in the header: the signed-in user's own record from Supabase
     	EmployeeDetails me = EmployeeRepository.findById(SessionManager.employeeNumber());
     	lblUsername.setText(me == null ? "" : me.fname + " " + me.lname);

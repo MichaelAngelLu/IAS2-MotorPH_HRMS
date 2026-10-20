@@ -42,14 +42,10 @@ public class Payslip extends JFrame {
 	private String[] payDate = {"September 10, 2022",
 								"September 17, 2022",
 								"September 24, 2022"};
-	private HoursWorked hrsWkd;
-	
-	private PrintNReadTxt printRead;
-	private UserLogin login;
-	protected double[] allEmpRate, weeklyPay;
+	private EmployeeDetails me;   // the signed-in employee's own record, loaded from Supabase
+	private int empNo;            // the signed-in employee's number
 	protected double rice = 1500.0 / 4, phone = 1000.0 / 4, clothes = 1000.0 / 4;
-	private static int user;
-	private int p, index;
+	private int p;                // selected pay period (1 = first week)
 	DecimalFormat df;
 	JScrollPane scrollPane = new JScrollPane();
 	JPanel payrollInformationPanel, employeeInformationPanel, employeeEarningsPanel;
@@ -75,16 +71,7 @@ public class Payslip extends JFrame {
 	 * Create the frame.
 	 */
 	public Payslip() {
-		hrsWkd = new HoursWorked();
-		printRead = new PrintNReadTxt();
-		login = new UserLogin();
-		printRead.printRead();
-		allEmpRate = printRead.getAllEmpRate();
-		weeklyPay = printRead.getWeeklyPay();
-
-		if (UserLogin.user != null) {
-			user = Integer.parseInt(UserLogin.user) - 10001;
-			}
+		empNo = SessionManager.employeeNumber();
 		df = new DecimalFormat("###,###.00");
 		
 		setResizable(false);
@@ -144,7 +131,6 @@ public class Payslip extends JFrame {
 				
 					// get the requested pay period and return the info
 					p = comboBoxPayPeriod.getSelectedIndex();
-					index = (p - 1) * 25;
 					displayText();			
 			}
 		});
@@ -604,52 +590,55 @@ public class Payslip extends JFrame {
 	}
 	
 	public void displayText() {
-		txtEmployeeName.setText(PrintNReadTxt.employee[user].fname + " " + PrintNReadTxt.employee[user].lname);
+		double hours, rate, pay;
+		try {
+			me = EmployeeRepository.findById(empNo);
+			if (me == null) {
+				JOptionPane.showMessageDialog(Payslip.this, "Your employee record could not be found.", "Error", JOptionPane.ERROR_MESSAGE);
+				return;
+			}
+			rate = Double.parseDouble(me.hourlyRate);
+			hours = TimesheetRepository.totalHours(empNo, p);   // the SAME pay period as the pay below
+			pay = hours * rate;                                 // same as TimesheetRepository.weeklyPay(empNo, p), without a second query
+		} catch (SupabaseClient.SupabaseException | NumberFormatException ex) {
+			JOptionPane.showMessageDialog(Payslip.this, "Could not load payslip data: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+			return;
+		}
+
+		txtEmployeeName.setText(me.fname + " " + me.lname);
 		txtPayrollPeriod.setText(payPeriod[p]);
-		txtEmployeeNo.setText(login.user + "");
+		txtEmployeeNo.setText(String.valueOf(empNo));
 		txtPayDate.setText(payDate[p-1]);
-		
-		txtTIN.setText(printRead.employee[user].tinNumber);
-		txtPhicNo.setText(printRead.employee[user].philHealthNumber);
-		txtPosition.setText(printRead.employee[user].position);
-		txtOvertimeRate.setText("PHP " + (Math.round((allEmpRate[user] * 1.5) * 100.0) / 100.0) + "");
-		txtSssNo.setText(printRead.employee[user].sssNumber);
-		txtHdmfNo.setText(printRead.employee[user].pagIbigNumber);
-		txtHourlyRate.setText("PHP " + allEmpRate[user] + "");
-		
-		txtBasicPayHrs.setText(hrsWkd.calculateWeeklyHoursWorked(1 + p,1 + user) + "");
-		txtBasicPay.setText("PHP " + df.format(weeklyPay[user + index]));
-		txtTotalTaxable.setText("PHP " +  df.format(weeklyPay[user + index]));
-		
+
+		txtTIN.setText(me.tinNumber);
+		txtPhicNo.setText(me.philHealthNumber);
+		txtPosition.setText(me.position);
+		txtOvertimeRate.setText("PHP " + (Math.round((rate * 1.5) * 100.0) / 100.0) + "");
+		txtSssNo.setText(me.sssNumber);
+		txtHdmfNo.setText(me.pagIbigNumber);
+		txtHourlyRate.setText("PHP " + rate + "");
+
+		txtBasicPayHrs.setText((Math.round(hours * 100.0) / 100.0) + "");
+		txtBasicPay.setText("PHP " + df.format(pay));
+		txtTotalTaxable.setText("PHP " +  df.format(pay));
+
 		txtRiceSubsidy.setText("PHP " +  df.format(rice));
 		txtPhoneSubsidy.setText("PHP " + df.format(phone));
 		txtClothingAllowance.setText("PHP " + df.format(clothes));
 		txtTotalNonTaxable.setText("PHP " + df.format((rice + phone + clothes)));
-		txtGrossEarnings.setText("PHP " + df.format(weeklyPay[user + index] + (rice + phone + clothes)));
-		
-		double sss = CalculateSSS.SSS(weeklyPay[user + index]), pagibig = CalculatePagIbig.PagIbig(weeklyPay[user + index]), philhealth = CalculatePhilhealth.Philhealth(weeklyPay[user + index]),
-				withholding = CalculateWitholdingTax.WitholdingTax(weeklyPay[user + index],
-						   CalculatePhilhealth.Philhealth(weeklyPay[user + index]),
-						   CalculatePagIbig.PagIbig(weeklyPay[user + index]),
-						   CalculateSSS.SSS(weeklyPay[user + index]));
-		
-		
-		txtSss.setText("PHP " + df.format(CalculateSSS.SSS(weeklyPay[user + index])));
-		txtPagibig.setText("PHP " + df.format(CalculatePagIbig.PagIbig(weeklyPay[user + index])));
-		txtPhilhealth.setText("PHP " + df.format(CalculatePhilhealth.Philhealth(weeklyPay[user + index])));
-		txtWithholdingTax.setText("PHP " + df.format(CalculateWitholdingTax.WitholdingTax(weeklyPay[user + index],
-				  									   CalculatePhilhealth.Philhealth(weeklyPay[user + index]),
-													   CalculatePagIbig.PagIbig(weeklyPay[user + index]),
-				  									   CalculateSSS.SSS(weeklyPay[user + index]))));
-		
-		txtTotalDeductions.setText("PHP " + df.format(CalculateSSS.SSS(weeklyPay[user + index]) + CalculatePhilhealth.Philhealth(weeklyPay[user + index]) + 
-											 CalculatePagIbig.PagIbig(weeklyPay[user + index]) + CalculateWitholdingTax.WitholdingTax(weeklyPay[user + index],
-				  									   CalculatePhilhealth.Philhealth(weeklyPay[user + index]),
-													   CalculatePagIbig.PagIbig(weeklyPay[user + index]),
-				  									   CalculateSSS.SSS(weeklyPay[user + index]))));
-		txtNetEarnings.setText("PHP " + df.format(weeklyPay[user + index] + (rice + phone + clothes) - (sss + pagibig + philhealth + withholding)));
+		txtGrossEarnings.setText("PHP " + df.format(pay + (rice + phone + clothes)));
+
+		double sss = CalculateSSS.SSS(pay), pagibig = CalculatePagIbig.PagIbig(pay), philhealth = CalculatePhilhealth.Philhealth(pay),
+				withholding = CalculateWitholdingTax.WitholdingTax(pay, philhealth, pagibig, sss);
+
+		txtSss.setText("PHP " + df.format(sss));
+		txtPagibig.setText("PHP " + df.format(pagibig));
+		txtPhilhealth.setText("PHP " + df.format(philhealth));
+		txtWithholdingTax.setText("PHP " + df.format(withholding));
+
+		txtTotalDeductions.setText("PHP " + df.format(sss + philhealth + pagibig + withholding));
+		txtNetEarnings.setText("PHP " + df.format(pay + (rice + phone + clothes) - (sss + pagibig + philhealth + withholding)));
 	}
-	
 	public JPanel getPanel() {
 		return contentPane;
 	}

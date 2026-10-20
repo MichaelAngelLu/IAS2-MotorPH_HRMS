@@ -40,9 +40,8 @@ public class EmployeeDetailsViewer extends EmployeeMaster {
 	private JTextField txtImmediateSupervisor;
 	private JTextField txtPosition;
 	
-	private int employeeNo;
-	private int selection;         // employee number - 10001; the pay section still indexes the old payroll arrays with it
-	private EmployeeDetails emp;   // the employee shown on screen
+	private int employeeNo;   // the employee being viewed
+	private int selection;    // employee number - 10001; only used for the existing "first 14 employees get the 875.00 allowances" rule
 	private JTextField textField_14;
 	private JTextField textField_15;
 	private JTextField textField_18;
@@ -53,9 +52,6 @@ public class EmployeeDetailsViewer extends EmployeeMaster {
 	protected String[] payPeriod = {"======= Pay Period =======",
 	  "1st Week September 2022", "2nd Week September 2022"}; // For JComboBox use
 	
-	protected double[] allEmpRate, weeklyPay, empHrsWkd;
-	private PrintNReadTxt printRead;
-	private HoursWorked hours;
 	private JTextField textField_13;
 	private JButton btnEdit, btnCancel, btnUpdate;
 	private JComboBox<Object> comboBoxStatus = new JComboBox<Object>(new Object[]{});;
@@ -63,51 +59,78 @@ public class EmployeeDetailsViewer extends EmployeeMaster {
 	/**
 	 * Launch the application.
 	 */
-	public void viewDetails() {
-    	try {
-        	emp = EmployeeRepository.findById(employeeNo);
-    	} catch (SupabaseClient.SupabaseException ex) {
-        	JOptionPane.showMessageDialog(null, "Could not load employee: " + ex.getMessage(),
-                "Error", JOptionPane.ERROR_MESSAGE);
-        	return;
-    	}
-    	if (emp == null) {
-        	JOptionPane.showMessageDialog(null, "Employee record not found.", "Error", JOptionPane.ERROR_MESSAGE);
-        	return;
-    	}
-    	btnEdit.setEnabled(!emp.employeeNumber.equals("10001"));
+	public  void viewDetails() {
+		EmployeeDetails emp;
+		try {
+			emp = EmployeeRepository.findById(employeeNo);
+		} catch (SupabaseClient.SupabaseException ex) {
+			JOptionPane.showMessageDialog(null, "Could not load employee: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+			return;
+		}
+		if (emp == null) {
+			JOptionPane.showMessageDialog(null, "Employee record not found.", "Error", JOptionPane.ERROR_MESSAGE);
+			return;
+		}
+		btnEdit.setEnabled(!emp.employeeNumber.equals("10001"));
 
-    	txtEmployeeNo.setText(emp.employeeNumber);
-    	txtLname.setText(emp.lname);
-    	txtPhoneNumber.setText(emp.phoneNumber);
-    	txtBday.setText(emp.bday);
-    	txtAdress.setText(emp.address);
-    	txtFname.setText(emp.fname);
-    	txtSssNo.setText(emp.sssNumber);
-    	txtPhilHealthNo.setText(emp.philHealthNumber);
-    	txtTin.setText(emp.tinNumber);
-    	txtPagibigNo.setText(emp.pagIbigNumber);
+		// Set Text Commands
+		txtEmployeeNo.setText(emp.employeeNumber);
+		txtLname.setText(emp.lname);
+		txtPhoneNumber.setText(emp.phoneNumber);
+		txtBday.setText(emp.bday);
+		txtAdress.setText(emp.address);
+		txtFname.setText(emp.fname);
+		txtSssNo.setText(emp.sssNumber);
+		txtPhilHealthNo.setText(emp.philHealthNumber);
+		txtTin.setText(emp.tinNumber);
+		txtPagibigNo.setText(emp.pagIbigNumber);
 
-    	int i = -1;
-    	if (emp.status.equals("Regular")) i = 0;
-    	else if (emp.status.equals("Probationary")) i = 1;
-    	comboBoxStatus.setSelectedIndex(i);
+		int i = -1;
+		if (emp.status.equals("Regular")) {
+			i = 0;
+		} else if (emp.status.equals("Probationary")) {
+			i = 1;
+		}
+		comboBoxStatus.setSelectedIndex(i);
+		txtPosition.setText(emp.position);
+		txtImmediateSupervisor.setText(emp.immediateSupervisor);
+	}
 
-    	txtPosition.setText(emp.position);
-    	txtImmediateSupervisor.setText(emp.immediateSupervisor);
-}
+	/** Fills the pay section for one pay period (1 = first week) from Supabase. */
+	private void showPay(int period, DecimalFormat df) {
+		double hours, rate, pay;
+		try {
+			EmployeeDetails emp = EmployeeRepository.findById(employeeNo);
+			if (emp == null) {
+				JOptionPane.showMessageDialog(null, "Employee record not found.", "Error", JOptionPane.ERROR_MESSAGE);
+				return;
+			}
+			rate = Double.parseDouble(emp.hourlyRate);
+			hours = TimesheetRepository.totalHours(employeeNo, period);
+			pay = hours * rate;       // same as TimesheetRepository.weeklyPay(employeeNo, period), without a second query
+		} catch (SupabaseClient.SupabaseException | NumberFormatException ex) {
+			JOptionPane.showMessageDialog(null, "Could not load pay data: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+			return;
+		}
 
+		double sss = CalculateSSS.SSS(pay), pagibig = CalculatePagIbig.PagIbig(pay), philhealth = CalculatePhilhealth.Philhealth(pay),
+				withholding = CalculateWitholdingTax.WitholdingTax(pay, philhealth, pagibig, sss);
+		boolean hasAllowances = selection < 14;      // existing rule: the first 14 employees receive the 875.00 allowances
+		double allowances = hasAllowances ? 875.0 : 0.0;
+
+		textField_14.setText("PHP " + rate);
+		textField_13.setText((Math.round(hours * 100.0) / 100.0) + "");
+		textField_15.setText("PHP " + df.format(pay));
+		textField_16.setText(hasAllowances ? "PHP 875.00" : "PHP 0.00");
+		textField_17.setText("PHP " + df.format(pay + allowances));
+		textField_19.setText("PHP " + df.format(pay + allowances - (sss + pagibig + philhealth + withholding)));
+		textField_18.setText("PHP " + df.format(sss + pagibig + philhealth + withholding));   // Deductions
+	}
 	/**
 	 * Create the frame.
 	 */
 	public EmployeeDetailsViewer() {
 		super();
-		printRead = new PrintNReadTxt();
-		hours = new HoursWorked();
-		printRead.printRead();
-		allEmpRate = printRead.getAllEmpRate();
-		weeklyPay = printRead.getWeeklyPay();
-		empHrsWkd = printRead.getEmpHrsWkd();
 		DecimalFormat df = new DecimalFormat("###,###.00");
 		
 		frame = new JFrame();
@@ -413,63 +436,15 @@ public class EmployeeDetailsViewer extends EmployeeMaster {
 		JButton btnView = new JButton("View");
 		btnView.setBounds(472, 23, 64, 20);
 		btnView.addActionListener(new ActionListener() {
-			
+
 			@Override
 			public void actionPerformed(ActionEvent e) {
-				if (comboBoxPayPeriod.getSelectedItem().equals(payPeriod[0])) {
-					
+				int period = comboBoxPayPeriod.getSelectedIndex();   // 0 = the prompt, 1..2 = pay weeks
+				if (period == 0) {
 					JOptionPane.showMessageDialog(EmployeeDetailsViewer.this, "       Please select pay period.", "Invalid Input", JOptionPane.INFORMATION_MESSAGE, null);
+					return;
 				}
-				
-				if (comboBoxPayPeriod.getSelectedItem().equals(payPeriod[1])) {
-				textField_14.setText("PHP " + allEmpRate[selection]);
-				textField_13.setText(hours.calculateWeeklyHoursWorked(1, selection + 1) + "");
-				textField_15.setText("PHP " +  df.format(weeklyPay[selection]));
-				
-				double sss = CalculateSSS.SSS(weeklyPay[selection]), pagibig = CalculatePagIbig.PagIbig(weeklyPay[selection]), philhealth = CalculatePhilhealth.Philhealth(weeklyPay[selection]),
-						withholding = CalculateWitholdingTax.WitholdingTax(weeklyPay[selection],
-								   CalculatePhilhealth.Philhealth(weeklyPay[selection]),
-								   CalculatePagIbig.PagIbig(weeklyPay[selection]),
-								   CalculateSSS.SSS(weeklyPay[selection]));
-				
-				if (selection < 14) {
-					textField_16.setText("PHP 875.00");
-					textField_17.setText("PHP " + df.format(weeklyPay[selection] + 875.0));
-					textField_19.setText("PHP " + df.format(weeklyPay[selection] + 875.0 - (sss + pagibig + philhealth + withholding)));
-				} else {
-					textField_16.setText("PHP 0.00");
-					textField_17.setText("PHP " + df.format(weeklyPay[selection]));
-					textField_19.setText("PHP " + df.format(weeklyPay[selection] + 0.0 - (sss + pagibig + philhealth + withholding)));
-				}
-				
-				// Deductions
-				textField_18.setText("PHP " + df.format(sss + pagibig + philhealth + withholding));
-				
-				} else if (comboBoxPayPeriod.getSelectedItem().equals(payPeriod[2])) {
-					textField_14.setText("PHP " + allEmpRate[selection]);
-					textField_13.setText(hours.calculateWeeklyHoursWorked(2, selection + 1) + "");
-					textField_15.setText("PHP " + df.format(weeklyPay[selection+25]));
-					
-					double sss = CalculateSSS.SSS(weeklyPay[selection + 25]), pagibig = CalculatePagIbig.PagIbig(weeklyPay[selection + 25]), philhealth = CalculatePhilhealth.Philhealth(weeklyPay[selection + 25]),
-							withholding = CalculateWitholdingTax.WitholdingTax(weeklyPay[selection + 25],
-									   CalculatePhilhealth.Philhealth(weeklyPay[selection + 25]),
-									   CalculatePagIbig.PagIbig(weeklyPay[selection + 25]),
-									   CalculateSSS.SSS(weeklyPay[selection + 25]));
-					
-					if (selection < 14) {
-						textField_16.setText("PHP 875.00");
-						textField_17.setText("PHP " + df.format(weeklyPay[selection + 25] + 875.0));
-						textField_19.setText("PHP " + df.format(weeklyPay[selection + 25] + 875.0 - (sss + pagibig + philhealth + withholding)));
-					} else {
-						textField_16.setText("PHP 0.00");
-						textField_17.setText("PHP " + df.format(weeklyPay[selection + 25]));
-						textField_19.setText("PHP " + df.format(weeklyPay[selection] + 0.0 - (sss + pagibig + philhealth + withholding)));
-					}
-					
-					// Deductions
-					textField_18.setText("PHP " + df.format(sss + pagibig + philhealth + withholding));
-				}
-				
+				showPay(period, df);
 			}
 		});
 		payrollInformationPanel_2.add(btnView);
@@ -525,32 +500,45 @@ public class EmployeeDetailsViewer extends EmployeeMaster {
 			@Override
 			public void actionPerformed(ActionEvent e) {
 				
-				 int confirm = JOptionPane.showConfirmDialog(null, "Save changes?", "Confirm Update", JOptionPane.YES_NO_CANCEL_OPTION);
-	    	        if (confirm == JOptionPane.YES_OPTION) {
-    					boolean saved = saveEmployee(employeeNo, txtLname.getText(), txtFname.getText(), txtBday.getText(),
-            				txtAdress.getText(), txtPhoneNumber.getText(), (String) comboBoxStatus.getSelectedItem(),
-            				txtPosition.getText(), txtImmediateSupervisor.getText());
-    					if (!saved) return;
-
-    					btnEdit.setEnabled(true);
-    					btnUpdate.setVisible(false);
-    					btnCancel.setVisible(false);
-    					txtFname.setEnabled(false);
-    					txtLname.setEnabled(false);
-    					txtBday.setEnabled(false);
-    					txtAdress.setEnabled(false);
-    					txtPhoneNumber.setEnabled(false);
-    					comboBoxStatus.setEnabled(false);
-    					txtPosition.setEnabled(false);
-    					txtImmediateSupervisor.setEnabled(false);
-    					viewDetails();   // reload so the screen shows what was actually stored
-					} else if (confirm == JOptionPane.NO_OPTION) {
-    					cancelUpdate();
-					}}
-	});
+				int confirm = JOptionPane.showConfirmDialog(null, "Save changes?", "Confirm Update", JOptionPane.YES_NO_CANCEL_OPTION);
+				if (confirm == JOptionPane.YES_OPTION) {
+					// Save to Supabase first, so a failed save keeps you in edit mode with your typing intact
+					boolean saved = saveEmployee(employeeNo, txtLname.getText(), txtFname.getText(), txtBday.getText(),
+							txtAdress.getText(), txtPhoneNumber.getText(), (String) comboBoxStatus.getSelectedItem(),
+							txtPosition.getText(), txtImmediateSupervisor.getText());
+					if (!saved) {
+						return;
+					}
+					btnEdit.setEnabled(true);
+					btnUpdate.setVisible(false);
+					btnCancel.setVisible(false);
+					txtFname.setEnabled(false);
+					txtLname.setEnabled(false);
+					txtBday.setEnabled(false);
+					txtAdress.setEnabled(false);
+					txtPhoneNumber.setEnabled(false);
+					comboBoxStatus.setEnabled(false);
+					txtPosition.setEnabled(false);
+					txtImmediateSupervisor.setEnabled(false);
+					viewDetails();   // reload so the screen shows what was actually stored
+				} else if (confirm == JOptionPane.NO_OPTION) {
+					cancelUpdate();
+				}
+			}
+		});
+		
+		btnCancel.addActionListener(new ActionListener() {
+			
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				cancelUpdate();
+			}
+		});
 
 		frame.getContentPane().add(btnEdit);
 		frame.getContentPane().add(btnCancel);
+		
+		
 		
 		btnBack.addActionListener(new ActionListener() {
 			
@@ -569,8 +557,8 @@ public class EmployeeDetailsViewer extends EmployeeMaster {
 	}
 	
 	public void setEmployeeNumber(int employeeNo) {
-    	this.employeeNo = employeeNo;
-    	this.selection = employeeNo - 10001;
+		this.employeeNo = employeeNo;
+		this.selection = employeeNo - 10001;
 	}
 	
 	public void cancelUpdate() {

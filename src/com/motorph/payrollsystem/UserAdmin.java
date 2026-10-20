@@ -18,21 +18,14 @@ import javax.swing.JTextField;
 import javax.swing.border.LineBorder;
 import java.awt.Color;
 import java.awt.event.ActionListener;
-import java.io.BufferedWriter;
-import java.io.FileNotFoundException;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.io.PrintWriter;
-import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Set;
 import java.awt.event.ActionEvent;
 import javax.swing.DefaultComboBoxModel;
 
 public class UserAdmin extends JFrame {
 
 	private JTextField txtTemPass;
-	private String[] available = new String[25];
-	private String[] savedEmpNo = PrintNReadTxt.savedEmpNo;
-	private PrintNReadTxt print = new PrintNReadTxt();
 	JComboBox comboBoxAvailableEmpNo, comboBoxActiveAccounts, comboBoxSystemRole;
 	/**
 	 * Launch the application.
@@ -56,135 +49,100 @@ public class UserAdmin extends JFrame {
 		findActiveAccounts();
 		setVisible(true);
 	}
-	
-	public void findAvailableEmployeeNumbers() {
-		print.printRead();
-		int index = 0;
-		
-		// clear the combo box & array
-		available = new String[25];
-		
-		// loop through all employee numbers from 10001 to 10025
-		for (int i = 10001; i <= 10025; i++) {
-		    String search = String.valueOf(i);
-		    
-		    // check if the current number is in the savedEmpNo array
-		    boolean found = false;
-		    for (UserDetails userDetail : PrintNReadTxt.user) {
-		        if (userDetail != null) {
-		        	if (userDetail.employeeNumber.equals(search)) {
-		        		found = true;
-		        		break;
-		            }
-		        }
-		    }
-		    // if the current number is not in the savedEmpNo array, add it to the available array
-		    if (!found) {
-		        available[index] = search;
-		        index++;
-		    }
-		} 
 
-		// clear the combo box
-		comboBoxAvailableEmpNo.removeAllItems();
-
-		// add the items to the combo box
-		for (String empNo : available) {
-		    if (empNo != null) {
-		        comboBoxAvailableEmpNo.addItem(empNo);
-		    }
-		}
+	private void showError(String message) {
+		JOptionPane.showMessageDialog(null, message, "Error", JOptionPane.ERROR_MESSAGE);
 	}
-	
-	public void findActiveAccounts() {
-		print.printRead();
-		// clear the combo box
-		comboBoxActiveAccounts.removeAllItems();
-		
-		// add the items to the combo box
-		for (UserDetails userDetail : PrintNReadTxt.user) {
-			if (userDetail != null) {
-				if (!userDetail.employeeNumber.equals("null")) {
-					if (!userDetail.employeeNumber.equals(PrintNReadTxt.employee[0].employeeNumber) && 
-						!userDetail.employeeNumber.equals(UserLogin.user)) {
-						comboBoxActiveAccounts.addItem(userDetail.employeeNumber);
+
+	/** Employees that exist but do not have a login yet. */
+	public void findAvailableEmployeeNumbers() {
+		comboBoxAvailableEmpNo.removeAllItems();
+		try {
+			Set<Integer> haveAccount = new HashSet<>();
+			for (AdminAccountService.Account a : AdminAccountService.listAccounts()) {
+				haveAccount.add(a.employeeNumber);
+			}
+			for (EmployeeDetails e : EmployeeRepository.findAll()) {
+				if (!haveAccount.contains(Integer.parseInt(e.employeeNumber))) {
+					comboBoxAvailableEmpNo.addItem(e.employeeNumber);
 				}
 			}
-		}
-	}
-}
-	
-	public void createNewAccount() {
-		int newEmp = Integer.parseInt((String) comboBoxAvailableEmpNo.getSelectedItem());
-		String newPass = txtTemPass.getText();
-		int empNo = newEmp - 10001;
-		
-		if (newPass.equals("")) {
-			JOptionPane.showMessageDialog(null, "        Please enter password.", "Input Error", JOptionPane.WARNING_MESSAGE);
-			return;
-		} else if (newPass.length() < 8) {
-			JOptionPane.showMessageDialog(null, "Password should contain atleast 8 characters.", "Input Error", JOptionPane.WARNING_MESSAGE);
-			return;
-		}
-		
-		if (comboBoxSystemRole.getSelectedIndex() == 0) {
-			JOptionPane.showMessageDialog(null, "Please enter new account system role.", "Input Error", JOptionPane.WARNING_MESSAGE);
-			return;
-		}
-		
-		updateCsv(empNo, newEmp + "", newPass, comboBoxSystemRole.getSelectedItem(), "Active");
-		
-		JOptionPane.showMessageDialog(null, "Account for employee " + newEmp + " created.", "Create New Successful", JOptionPane.INFORMATION_MESSAGE);
-		 
-	}
-	
-	public void deleteAccount() {
-		int delEmp = Integer.parseInt((String) comboBoxActiveAccounts.getSelectedItem());
-		int delIndex = delEmp - 10001;
-		
-		int confirm = JOptionPane.showConfirmDialog(null, "Delete " + delEmp + "'s Employee Account?", "Confirm Delete", JOptionPane.YES_NO_OPTION);
-		if (confirm != JOptionPane.YES_OPTION) return;
-		
-		
-		
-		updateCsv(delIndex, null, null, null, null);
-		
-		JOptionPane.showMessageDialog(null, "Account for employee " + delEmp + " deleted.", "Delete Successful", JOptionPane.INFORMATION_MESSAGE);
-	}
-	
-	public void updateCsv(int empIndex, String newEmp, String newPass, Object object, String status) {
-		try {
-	        BufferedWriter writer = new BufferedWriter(new FileWriter("csv/LogInCredentials.csv"));
-	     // loop through the user array and write to the CSV file
-	        	for (int i = 0; i < PrintNReadTxt.user.length; i++) {
-//	        		if (PrintNReadTxt.user[i] != null) {
-	        			// if i is equal to new employee number, write the entered details on that index/line
-	        			if (i == empIndex) {
-	        				writer.write(newEmp + "," +
-	        						 newPass + "," +
-	        						 object + "," +
-	        						 status);
-	        				 writer.newLine();
-	        			} else if (PrintNReadTxt.user[i] == null) { 
-	        				continue;
-	        			} else {
-	        				// write the original user detail to the CSV file
-	        				writer.write(PrintNReadTxt.user[i].employeeNumber + "," +
-	        						PrintNReadTxt.user[i].password + "," +
-	        						PrintNReadTxt.user[i].systemRole + "," +
-	        						PrintNReadTxt.user[i].accountStatus);
-	        				 writer.newLine();
-	        			}
-//	        		}
-	        }
-	        writer.close();
-		} catch (FileNotFoundException e) {
-	        e.printStackTrace();
-	    } catch (IOException e) {
-			e.printStackTrace();
+		} catch (SecurityException | SupabaseClient.SupabaseException ex) {
+			showError("Could not load employees: " + ex.getMessage());
 		}
 	}
 
+	/** Existing accounts that can be deleted (not the protected first employee, and not yourself). */
+	public void findActiveAccounts() {
+		comboBoxActiveAccounts.removeAllItems();
+		try {
+			for (AdminAccountService.Account a : AdminAccountService.listAccounts()) {
+				if (a.employeeNumber == 10001 || a.employeeNumber == SessionManager.employeeNumber()) {
+					continue;
+				}
+				comboBoxActiveAccounts.addItem(String.valueOf(a.employeeNumber));
+			}
+		} catch (SecurityException | SupabaseClient.SupabaseException ex) {
+			showError("Could not load accounts: " + ex.getMessage());
+		}
+	}
+
+	/** Returns true if the account was created. */
+	public boolean createNewAccount() {
+		Object selected = comboBoxAvailableEmpNo.getSelectedItem();
+		if (selected == null) {
+			JOptionPane.showMessageDialog(null, "Every employee already has an account.", "Input Error", JOptionPane.WARNING_MESSAGE);
+			return false;
+		}
+		int newEmp = Integer.parseInt((String) selected);
+		String newPass = txtTemPass.getText();
+
+		if (newPass.equals("")) {
+			JOptionPane.showMessageDialog(null, "        Please enter password.", "Input Error", JOptionPane.WARNING_MESSAGE);
+			return false;
+		} else if (newPass.length() < 8) {
+			JOptionPane.showMessageDialog(null, "Password should contain atleast 8 characters.", "Input Error", JOptionPane.WARNING_MESSAGE);
+			return false;
+		}
+
+		if (comboBoxSystemRole.getSelectedIndex() == 0) {
+			JOptionPane.showMessageDialog(null, "Please enter new account system role.", "Input Error", JOptionPane.WARNING_MESSAGE);
+			return false;
+		}
+		String role = "Admin".equals(comboBoxSystemRole.getSelectedItem()) ? "admin" : "employee";
+
+		try {
+			AdminAccountService.create(newEmp, newPass, role);
+		} catch (SecurityException | IllegalArgumentException | SupabaseClient.SupabaseException ex) {
+			JOptionPane.showMessageDialog(null, ex.getMessage(), "Could not create account", JOptionPane.ERROR_MESSAGE);
+			return false;
+		}
+
+		JOptionPane.showMessageDialog(null,
+			"Account for employee " + newEmp + " created.\nThey will be asked to change the temporary password.",
+			"Create New Successful", JOptionPane.INFORMATION_MESSAGE);
+		return true;
+	}
+
+	public void deleteAccount() {
+		Object selected = comboBoxActiveAccounts.getSelectedItem();
+		if (selected == null) {
+			return;
+		}
+		int delEmp = Integer.parseInt((String) selected);
+
+		int confirm = JOptionPane.showConfirmDialog(null, "Delete " + delEmp + "'s Employee Account?", "Confirm Delete", JOptionPane.YES_NO_OPTION);
+		if (confirm != JOptionPane.YES_OPTION) return;
+
+		try {
+			AdminAccountService.delete(delEmp);
+		} catch (SecurityException | SupabaseClient.SupabaseException ex) {
+			JOptionPane.showMessageDialog(null, ex.getMessage(), "Could not delete account", JOptionPane.ERROR_MESSAGE);
+			return;
+		}
+
+		JOptionPane.showMessageDialog(null, "Account for employee " + delEmp + " deleted.", "Delete Successful", JOptionPane.INFORMATION_MESSAGE);
+	}
 	/**
 	 * Create the frame.
 	 */
@@ -216,7 +174,7 @@ public class UserAdmin extends JFrame {
 		lblSelectAvailableEmp.setBounds(10, 26, 161, 14);
 		panel.add(lblSelectAvailableEmp);
 		
-		comboBoxAvailableEmpNo = new JComboBox(available);
+		comboBoxAvailableEmpNo = new JComboBox(new Object[]{});
 		comboBoxAvailableEmpNo.setBounds(188, 22, 197, 22);
 		panel.add(comboBoxAvailableEmpNo);
 		
@@ -235,9 +193,10 @@ public class UserAdmin extends JFrame {
 			
 			@Override
 			public void actionPerformed(ActionEvent e) {
-				createNewAccount();
-				txtTemPass.setText("");
-				comboBoxSystemRole.setSelectedIndex(0);
+				if (createNewAccount()) {
+					txtTemPass.setText("");
+					comboBoxSystemRole.setSelectedIndex(0);
+				}
 				findAvailableEmployeeNumbers();
 				findActiveAccounts();
 			}

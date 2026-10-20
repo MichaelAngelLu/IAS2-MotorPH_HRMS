@@ -15,7 +15,9 @@ import javax.swing.JButton;
 import java.awt.event.ActionListener;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
-import java.util.Arrays;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.util.Locale;
 import java.awt.event.ActionEvent;
 import java.awt.Component;
 import javax.swing.Box;
@@ -45,9 +47,8 @@ public class HoursWorked extends JFrame {
 	private JTextField txtTuesdayHrs;
 	private JTextField txtTotalHoursWorked;
 	
-	private PrintNReadTxt printNRead;
-	private UserLogin login;
-	private static int user;
+	private int empNo;   // the signed-in employee, taken from the Supabase session
+	private static final DateTimeFormatter DATE_LABEL = DateTimeFormatter.ofPattern("MMMM d", Locale.ENGLISH);
 
 	/**
 	 * Launch the application.
@@ -69,13 +70,7 @@ public class HoursWorked extends JFrame {
 	 * Create the frame.
 	 */
 	public HoursWorked() {
-		printNRead = new PrintNReadTxt();
-		printNRead.printRead();
-		login = new UserLogin();
-		if (login.user != null) {
-		user = Integer.parseInt(login.user) - 10001;
-		}
-		double[] empHrsWkd = printNRead.getEmpHrsWkd();
+		empNo = SessionManager.employeeNumber();
 		
 		setIconImage(Toolkit.getDefaultToolkit().getImage("MOTORPH.png"));
 		setTitle("MotorPH Employee Timesheet");
@@ -122,87 +117,30 @@ public class HoursWorked extends JFrame {
 		
 		btnSubmit.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
-				
-				if (comboBoxPayPeriod.getSelectedItem().equals(payPeriod[0])) {
-					
+				int period = comboBoxPayPeriod.getSelectedIndex();      // 0 = the prompt, 1..3 = pay weeks
+				if (period == 0) {
 					JOptionPane.showMessageDialog(HoursWorked.this, "       Please select pay period.", "Invalid Input", JOptionPane.INFORMATION_MESSAGE, null);
+					return;
 				}
-				
-				if (comboBoxPayPeriod.getSelectedItem().equals(payPeriod[1])) {
-				
-				
-					
-				txtMondayDate.setText("September 5");
-				txtTuesdayDate.setText("September 6");
-				txtWednesdayDate.setText("September 7");
-				txtThursdayDate.setText("September 8");
-				txtFridayDate.setText("September 9");
-				
-				String empHrs1 = empHrsWkd[50 + user] + "", empHrs2 = empHrsWkd[75 + user] + "",
-					   empHrs3 = empHrsWkd[100 + user] + "", empHrs4 = empHrsWkd[125 + user] + "",
-					   empHrs5 = empHrsWkd[150 + user] + "";
-				
-				txtMondayHrs.setText(empHrs1);
-				txtTuesdayHrs.setText(empHrs2);
-				txtWednesdayHrs.setText(empHrs3);
-				txtThursdayHrs.setText(empHrs4);
-				txtFridayHrs.setText(empHrs5);
-				
-				String empHrsTtl1 = calculateWeeklyHoursWorked(1,1 + user) + "";
-				txtTotalHoursWorked.setText(empHrsTtl1);
-				
-				}
-				
-				if (comboBoxPayPeriod.getSelectedItem().equals(payPeriod[2])) {
-					
-					
-					
-					txtMondayDate.setText("September 12");
-					txtTuesdayDate.setText("September 13");
-					txtWednesdayDate.setText("September 14");
-					txtThursdayDate.setText("September 15");
-					txtFridayDate.setText("September 16");
-					
-					String empHrs6 = empHrsWkd[175 + user] + "", empHrs7 = empHrsWkd[200 + user] + "",
-							   empHrs8 = empHrsWkd[225 + user] + "", empHrs9 = empHrsWkd[250 + user] + "",
-							   empHrs10 = empHrsWkd[275 + user] + "";
-					
-					txtMondayHrs.setText(empHrs6);
-					txtTuesdayHrs.setText(empHrs7);
-					txtWednesdayHrs.setText(empHrs8);
-					txtThursdayHrs.setText(empHrs9);
-					txtFridayHrs.setText(empHrs10);
-					
-					String empHrsTtl1 = calculateWeeklyHoursWorked(2,1 + user) + "";
-					txtTotalHoursWorked.setText(empHrsTtl1);
 
-					
+				double[] week;
+				try {
+					week = TimesheetRepository.weekHours(empNo, period);   // Monday..Friday, absent days = 0
+				} catch (SupabaseClient.SupabaseException ex) {
+					JOptionPane.showMessageDialog(HoursWorked.this, "Could not load timesheet: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+					return;
 				}
-				
-				if (comboBoxPayPeriod.getSelectedItem().equals(payPeriod[3])) {
-					
-					
-					
-					txtMondayDate.setText("September 19");
-					txtTuesdayDate.setText("September 20");
-					txtWednesdayDate.setText("September 21");
-					txtThursdayDate.setText("September 22");
-					txtFridayDate.setText("September 23");
-					
-					String empHrs11 = empHrsWkd[300 + user] + "", empHrs12 = empHrsWkd[325 + user] + "",
-						   empHrs13 = empHrsWkd[350 + user] + "", empHrs14 = empHrsWkd[375 + user] + "",
-						   empHrs15 = empHrsWkd[400 + user] + "";
-					
-					txtMondayHrs.setText(empHrs11);
-					txtTuesdayHrs.setText(empHrs12);
-					txtWednesdayHrs.setText(empHrs13);
-					txtThursdayHrs.setText(empHrs14);
-					txtFridayHrs.setText(empHrs15);
-					
-					String empHrsTtl1 = calculateWeeklyHoursWorked(3,1 + user) + "";
-					txtTotalHoursWorked.setText(empHrsTtl1);
-					
+
+				LocalDate monday = TimesheetRepository.periodStart(period);
+				JTextField[] dates = { txtMondayDate, txtTuesdayDate, txtWednesdayDate, txtThursdayDate, txtFridayDate };
+				JTextField[] hours = { txtMondayHrs, txtTuesdayHrs, txtWednesdayHrs, txtThursdayHrs, txtFridayHrs };
+				double total = 0;
+				for (int i = 0; i < 5; i++) {
+					dates[i].setText(monday.plusDays(i).format(DATE_LABEL));
+					hours[i].setText(round2(week[i]) + "");
+					total += week[i];
 				}
+				txtTotalHoursWorked.setText(round2(total) + "");
 			}
 		});
 		btnSubmit.setBounds(164, 79, 106, 23);
@@ -411,15 +349,7 @@ public class HoursWorked extends JFrame {
 
 	}
 	
-	public double calculateWeeklyHoursWorked(int week, int employee) {
-    	printNRead.printRead();
-		double[] empHrsWkd = printNRead.getEmpHrsWkd();
-		
-        double sum = 0;
-			for (int i = 1; i <= 5; i++) {
-				sum += empHrsWkd[i * 25 + (((week - 1) * 125) + 25) + (employee - 1)];
-//				System.out.println(i * 25 + (((week - 1) * 125) + 25) + (employee - 1));
-			}
-        return sum;
-    }
+	private static double round2(double x) {
+		return Math.round(x * 100.0) / 100.0;
+	}
 }
