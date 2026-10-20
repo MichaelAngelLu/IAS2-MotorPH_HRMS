@@ -567,6 +567,7 @@ public class Payslip extends JFrame {
 				 	slipWriter.println("\nNET EARNINGS: PHP " + txtNetEarnings.getText());
         
 				    slipWriter.close();
+				    AuditLogger.log("PAYSLIP_GENERATED", "Generated payslip of employee " + txtEmployeeNo.getText() + " for " + txtPayrollPeriod.getText());
 				      } catch (IOException f) {
 				        System.out.println("An error occurred.");
 				        f.printStackTrace();
