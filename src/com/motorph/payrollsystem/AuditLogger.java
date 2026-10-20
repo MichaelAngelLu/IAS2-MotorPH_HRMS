@@ -1,64 +1,38 @@
 package com.motorph.payrollsystem;
 
-import java.io.File;
-import java.io.IOException;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
-import java.util.logging.FileHandler;
-import java.util.logging.Formatter;
-import java.util.logging.Level;
-import java.util.logging.LogRecord;
-import java.util.logging.Logger;
+import com.google.gson.JsonObject;
 
+/**
+ * Writes security-sensitive events to audit_logs (SIP Control 5).
+ * Logging must never break the app, so every failure is swallowed.
+ * NEVER pass passwords or tokens into these methods.
+ */
 public final class AuditLogger {
 
-	private static final Logger LOGGER = Logger.getLogger("com.motorph.payrollsystem.audit");
-	private static final DateTimeFormatter TIMESTAMP = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
-	private static final String LOG_DIRECTORY = "logs";
-	private static final String LOG_FILE = "logs/audit.log";
+    private AuditLogger() { }
 
-	private static boolean initialized = false;
+    /** Use after sign-in. Examples: LOGIN_SUCCESS, RECORD_DELETED, LEAVE_APPROVED. */
+    public static void log(String eventType, String target) {
+        if (!SessionManager.isLoggedIn()) return;
+        try {
+            JsonObject body = new JsonObject();
+            body.addProperty("user_id", SessionManager.userId());
+            body.addProperty("event_type", eventType);
+            body.addProperty("target", target);
+            SupabaseClient.request("POST", "/rest/v1/audit_logs", body, SessionManager.token(), false);
+        } catch (Exception e) {
+            System.err.println("Audit log failed: " + e.getMessage());
+        }
+    }
 
-	private AuditLogger() {
-	}
-
-	private static synchronized void initialize() {
-		if (initialized) {
-			return;
-		}
-		try {
-			new File(LOG_DIRECTORY).mkdirs();
-			FileHandler handler = new FileHandler(LOG_FILE, 0, 1, true);
-			handler.setFormatter(new Formatter() {
-				@Override
-				public String format(LogRecord record) {
-					return LocalDateTime.now().format(TIMESTAMP) + "," + record.getMessage()
-							+ System.lineSeparator();
-				}
-			});
-			LOGGER.addHandler(handler);
-			LOGGER.setUseParentHandlers(false);
-			LOGGER.setLevel(Level.INFO);
-		} catch (IOException e) {
-			System.err.println("Unable to initialize audit log: " + e.getMessage());
-		}
-		initialized = true;
-	}
-
-	public static void log(String action, String details) {
-		initialize();
-		String user = UserLogin.user;
-		if (user == null || user.trim().isEmpty()) {
-			user = "SYSTEM";
-		}
-		LOGGER.info(escape(user) + "," + escape(action) + "," + escape(details));
-	}
-
-	private static String escape(String value) {
-		if (value == null) {
-			return "\"\"";
-		}
-		String cleaned = value.replace("\"", "\"\"").replace("\r", " ").replace("\n", " ");
-		return "\"" + cleaned + "\"";
-	}
+    /** Failed logins happen before a session exists, so they go through a narrow RPC. */
+    public static void logFailedLogin(String employeeNumber) {
+        try {
+            JsonObject body = new JsonObject();
+            body.addProperty("p_employee", employeeNumber == null ? "" : employeeNumber);
+            SupabaseClient.request("POST", "/rest/v1/rpc/log_failed_login", body, null, false);
+        } catch (Exception e) {
+            System.err.println("Audit log failed: " + e.getMessage());
+        }
+    }
 }

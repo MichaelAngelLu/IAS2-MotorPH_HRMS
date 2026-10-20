@@ -41,7 +41,7 @@ public class PayrollSettings extends JFrame {
 	private JTextField txtCurrentPass;
 	private JTextField txtNewPass;
 	private JTextField txtNewPass2;
-	private PrintNReadTxt printRead;
+
 	private JCheckBox chckbxNewCheckBox, chckNewPass, chckAgainPass;
 	
 	public void displaySettings() {
@@ -60,7 +60,7 @@ public class PayrollSettings extends JFrame {
 	 * Create the frame.
 	 */
 	public PayrollSettings() {
-		printRead = new PrintNReadTxt();
+		
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		setTitle("Payroll System Settings");
 		setSize(444,268);
@@ -227,33 +227,35 @@ public class PayrollSettings extends JFrame {
     	JButton btnNewButton = new JButton("Change");
     	btnNewButton.addActionListener(new ActionListener() {
     		public void actionPerformed(ActionEvent e) {
-    			String current = txtCurrentPass.getText();
-    			String newP = txtNewPass.getText();
-    			String again = txtNewPass2.getText();
-    			if (!checkCurrent(current) || current == null) {
-    				JOptionPane.showMessageDialog(null, "You entered an incorrect password.", "Incorrect", JOptionPane.INFORMATION_MESSAGE);
-    				return;}
-    			if (!checkLength(newP)) {
-    				JOptionPane.showMessageDialog(null, "Password should contain atleast 8 characters.", "Password Too Weak", JOptionPane.INFORMATION_MESSAGE);
-    				return;}
-    			if (!checkMatch(newP,again)) {
-    				JOptionPane.showMessageDialog(null, "Password did not match. Please try again.", "Match Error", JOptionPane.INFORMATION_MESSAGE);
-    				return;}
-    			saveNewPassword(newP);
-    			clearTextBoxes();
-    			JOptionPane.showMessageDialog(null, "Password change successful.", "Successful", JOptionPane.INFORMATION_MESSAGE);
-    			printRead.printRead();
-    		}
-    	});
+        		String current = txtCurrentPass.getText();
+        		String newP = txtNewPass.getText();
+        		String again = txtNewPass2.getText();
+
+        		if (!checkLength(newP)) {
+            		JOptionPane.showMessageDialog(null, "Password should contain atleast 8 characters.", "Password Too Weak", JOptionPane.INFORMATION_MESSAGE);
+            		return;
+        		}
+        		if (!checkMatch(newP, again)) {
+            		JOptionPane.showMessageDialog(null, "Password did not match. Please try again.", "Match Error", JOptionPane.INFORMATION_MESSAGE);
+            		return;
+        		}
+
+        		try {
+            		if (!AuthService.changePassword(current, newP)) {
+                		JOptionPane.showMessageDialog(null, "You entered an incorrect password.", "Incorrect", JOptionPane.INFORMATION_MESSAGE);
+                		return;
+            		}
+        		} catch (SupabaseClient.SupabaseException | SecurityException ex) {
+            		JOptionPane.showMessageDialog(null, "Could not change password: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+            		return;
+        		}
+
+        		clearTextBoxes();
+        		JOptionPane.showMessageDialog(null, "Password change successful.", "Successful", JOptionPane.INFORMATION_MESSAGE);
+   			}
+		});
     	btnNewButton.setBounds(124, 90, 86, 23);
     	panel.add(btnNewButton);
-	}
-	
-	public boolean checkCurrent(String current) {
-		String saved = PrintNReadTxt.user[Integer.parseInt(UserLogin.user) - 10001].password;
-		if (current.equals(saved)) {
-			return true;
-		} else { return false; }
 	}
 	
 	public boolean checkLength(String newP) {
@@ -266,42 +268,6 @@ public class PayrollSettings extends JFrame {
 		if (newP.equals(again)) {
 			return true;
 		} else { return false; }
-	}
-	
-	public void saveNewPassword(String newPassword) {
-		int empNo = Integer.parseInt(UserLogin.user) - 10001;
-		
-		try {
-	        BufferedWriter writer = new BufferedWriter(new FileWriter("csv/LogInCredentials.csv"));
-	     // loop through the user array and write to the CSV file
-	        	for (int i = 0; i < PrintNReadTxt.user.length; i++) {
-//	        		if (PrintNReadTxt.user[i] != null) {
-	        			// if i is equal to new employee number, write the entered details on that index/line
-	        			if (i == empNo) {
-	        				writer.write(PrintNReadTxt.user[i].employeeNumber + "," +
-	        						 newPassword + "," +
-	        						 PrintNReadTxt.user[i].systemRole + "," +
-	        						 PrintNReadTxt.user[i].accountStatus);
-	        				 writer.newLine();
-	        			} else if (PrintNReadTxt.user[i] == null) { 
-	        				continue;
-	        			} else {
-	        				// write the original user detail to the CSV file
-	        				writer.write(PrintNReadTxt.user[i].employeeNumber + "," +
-	        						PrintNReadTxt.user[i].password + "," +
-	        						PrintNReadTxt.user[i].systemRole + "," +
-	        						PrintNReadTxt.user[i].accountStatus);
-	        				 writer.newLine();
-	        			}
-//	        		}
-	        } writer.close();
-	        AuditLogger.log("PASSWORD_CHANGED", "Employee " + UserLogin.user + " changed password");
-		} catch (FileNotFoundException e) {
-	        e.printStackTrace();
-	    } catch (IOException e) {
-			e.printStackTrace();
-		}
-		
 	}
 	
 	public void clearTextBoxes() {
