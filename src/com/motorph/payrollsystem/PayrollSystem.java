@@ -496,13 +496,8 @@ public class PayrollSystem extends JFrame {
 	}
 	
 	private boolean isAdmin() {
-		try {
-			UserDetails current = PrintNReadTxt.user[Integer.parseInt(UserLogin.user) - 10001];
-			return current != null && "Admin".equals(current.systemRole);
-		} catch (Exception e) {
-			return false;
-		}
-	}
+    return SessionManager.isAdmin();
+}
 	
 	public void openUserLogin() {
 		UserLogin login = new UserLogin();
@@ -511,17 +506,22 @@ public class PayrollSystem extends JFrame {
 	}
 	
 	public void displayPayrollMenu() {
-    	// Name in the header: the signed-in user's own record from Supabase
-    	EmployeeDetails me = EmployeeRepository.findById(SessionManager.employeeNumber());
-    	lblUsername.setText(me == null ? "" : me.fname + " " + me.lname);
-    	setVisible(true);
-    	btnPersonalInfo.doClick();
+    // Name in the header: the signed-in employee's own record from Supabase
+    EmployeeDetails me = null;
+    try {
+        me = EmployeeRepository.findById(SessionManager.employeeNumber());
+    } catch (SupabaseClient.SupabaseException ex) {
+        System.err.println("Could not load the employee record: " + ex.getMessage());
+    }
+    lblUsername.setText(me == null ? "" : me.fname + " " + me.lname);
+    setVisible(true);
+    btnPersonalInfo.doClick();
 
-    	// Role comes from Supabase (profiles.role), not from the old CSV
-    	if (!SessionManager.isAdmin()) {
-        	lblNewLabel_2_1.setVisible(false);
-        	btnEmployeeMaster.setVisible(false);
-        	btnUserAccounts.setVisible(false);
-    	}
-	}
+    // Role comes from Supabase (profiles.role), not from the old credentials file
+    if (!SessionManager.isAdmin()) {
+        lblNewLabel_2_1.setVisible(false);
+        btnEmployeeMaster.setVisible(false);
+        btnUserAccounts.setVisible(false);
+    }
+}
 }
