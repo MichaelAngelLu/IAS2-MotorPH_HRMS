@@ -267,11 +267,10 @@ public class PayrollSystem extends JFrame {
 		btnEmployeeMaster.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
 				
-				if (!isAdmin()) {
-					AuditLogger.log("UNAUTHORIZED_ACCESS", "Non-admin employee " + UserLogin.user + " attempted to open Employee Master");
-					JOptionPane.showMessageDialog(null, "Access denied. Administrator privileges are required.", "Unauthorized", JOptionPane.ERROR_MESSAGE);
-					return;
+				if (!allowed("hr_admin")) {      // refusals are written to the audit log, and the message is shown
+    				return;
 				}
+
 				master.viewEmployeeMaster();
 				setVisible(false);
 //				dispose();
@@ -304,10 +303,8 @@ public class PayrollSystem extends JFrame {
 		btnUserAccounts.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
 				
-				if (!isAdmin()) {
-					AuditLogger.log("UNAUTHORIZED_ACCESS", "Non-admin employee " + UserLogin.user + " attempted to open User Accounts");
-					JOptionPane.showMessageDialog(null, "Access denied. Administrator privileges are required.", "Unauthorized", JOptionPane.ERROR_MESSAGE);
-					return;
+				if (!allowed("it_admin")) {
+    				return;
 				}
 				chooseButton(btnUserAccounts);
 				switchPanes(paneUserAccounts);
@@ -338,7 +335,7 @@ public class PayrollSystem extends JFrame {
 			public void actionPerformed(ActionEvent e) {
 				int confirm = JOptionPane.showConfirmDialog(null, "Are you sure you want to log out?", "Confirm Log Out", JOptionPane.YES_NO_OPTION);
     	        if (confirm == JOptionPane.YES_OPTION) {
-    	            AuditLogger.log("LOGOUT", "Employee " + UserLogin.user + " logged out");
+    	            AuthService.logout();   // writes LOGOUT to the audit log, then clears the in-memory session
     	            // Log user out
     	        	setVisible(false);
     	        	dispose();
@@ -495,8 +492,14 @@ public class PayrollSystem extends JFrame {
 		});
 	}
 	
-	private boolean isAdmin() {
-    return SessionManager.isAdmin();
+	private boolean allowed(String role) {
+    try {
+        SessionManager.requireRole(role);   // refusals are written to audit_logs
+        return true;
+    } catch (SecurityException ex) {
+        JOptionPane.showMessageDialog(null, ex.getMessage(), "Permission Error", JOptionPane.WARNING_MESSAGE);
+        return false;
+    }
 }
 	
 	public void openUserLogin() {
@@ -518,10 +521,11 @@ public class PayrollSystem extends JFrame {
     btnPersonalInfo.doClick();
 
     // Role comes from Supabase (profiles.role), not from the old credentials file
-    if (!SessionManager.isAdmin()) {
-        lblNewLabel_2_1.setVisible(false);
-        btnEmployeeMaster.setVisible(false);
-        btnUserAccounts.setVisible(false);
-    }
-}
+    	boolean hr = SessionManager.isHrAdmin();
+		boolean it = SessionManager.isItAdmin();
+		lblNewLabel_2_1.setVisible(hr || it);
+		btnEmployeeMaster.setVisible(hr);
+		btnUserAccounts.setVisible(it);
+		btnUserAccounts.setBounds(0, hr ? 188 : 164, 135, 23);   // no gap if there is no Employee Master button
+	}
 }

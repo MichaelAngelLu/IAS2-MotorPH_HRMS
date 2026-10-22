@@ -64,7 +64,7 @@ public class EmployeeMaster extends JFrame {
 	
 	public void loadEmployees() {
 		try {
-			SessionManager.requireRole("admin");      // backend check; also writes an audit entry if denied
+			SessionManager.requireRole("hr_admin");      // backend check; also writes an audit entry if denied
 			employees = EmployeeRepository.findAll();
 		} catch (SecurityException | SupabaseClient.SupabaseException ex) {
 			JOptionPane.showMessageDialog(null, ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
@@ -373,7 +373,7 @@ public class EmployeeMaster extends JFrame {
 	
 	public void loadLeaveApplications() {
 		try {
-			SessionManager.requireRole("admin");
+			SessionManager.requireRole("hr_admin");
 			leaveRows = LeaveRepository.list();      // newest first; RLS decides what is visible
 		} catch (SecurityException | SupabaseClient.SupabaseException ex) {
 			JOptionPane.showMessageDialog(null, ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);

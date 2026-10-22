@@ -82,7 +82,7 @@ public final class LeaveRepository {
     public static void reject(long id)  { decide(id, "Rejected", "LEAVE_REJECTED"); }
 
     private static void decide(long id, String status, String auditEvent) {
-        SessionManager.requireRole("admin");
+        SessionManager.requireRole("hr_admin");
         JsonObject b = new JsonObject();
         b.addProperty("status", status);
         b.addProperty("decided_by", SessionManager.userId());
@@ -106,7 +106,7 @@ public final class LeaveRepository {
 
     /** Admin only. Replaces EmployeeMaster.delete(). */
     public static void delete(long id) {
-        SessionManager.requireRole("admin");
+        SessionManager.requireRole("hr_admin");
         JsonArray gone = SupabaseClient.request("DELETE",
                 "/rest/v1/leave_applications?id=eq." + id,
                 null, SessionManager.token(), true).getAsJsonArray();

@@ -10,7 +10,7 @@ public final class SessionManager {
     private static String accessToken;
     private static String userId;
     private static int employeeNumber;
-    private static String role;               // "admin" or "employee"
+    private static String role;               // "employee", "hr_admin" or "it_admin"
     private static boolean mustChangePassword;
 
     private SessionManager() { }
@@ -36,7 +36,8 @@ public final class SessionManager {
     public static String userId()               { return userId; }
     public static int employeeNumber()          { return employeeNumber; }
     public static String role()                 { return role; }
-    public static boolean isAdmin()             { return "admin".equals(role); }
+    public static boolean isHrAdmin()           { return "hr_admin".equals(role); }
+    public static boolean isItAdmin()           { return "it_admin".equals(role); }
     public static boolean mustChangePassword()  { return mustChangePassword; }
     static void passwordChanged()               { mustChangePassword = false; }
 

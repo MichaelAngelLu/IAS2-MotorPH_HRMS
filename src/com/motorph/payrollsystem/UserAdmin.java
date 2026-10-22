@@ -18,8 +18,6 @@ import javax.swing.JTextField;
 import javax.swing.border.LineBorder;
 import java.awt.Color;
 import java.awt.event.ActionListener;
-import java.util.HashSet;
-import java.util.Set;
 import java.awt.event.ActionEvent;
 import javax.swing.DefaultComboBoxModel;
 
@@ -58,14 +56,9 @@ public class UserAdmin extends JFrame {
 	public void findAvailableEmployeeNumbers() {
 		comboBoxAvailableEmpNo.removeAllItems();
 		try {
-			Set<Integer> haveAccount = new HashSet<>();
-			for (AdminAccountService.Account a : AdminAccountService.listAccounts()) {
-				haveAccount.add(a.employeeNumber);
-			}
-			for (EmployeeDetails e : EmployeeRepository.findAll()) {
-				if (!haveAccount.contains(Integer.parseInt(e.employeeNumber))) {
-					comboBoxAvailableEmpNo.addItem(e.employeeNumber);
-				}
+			// Names only: an IT administrator must not see salaries or personal data
+			for (AdminAccountService.Person p : AdminAccountService.listUnprovisionedEmployees()) {
+				comboBoxAvailableEmpNo.addItem(String.valueOf(p.employeeNumber));
 			}
 		} catch (SecurityException | SupabaseClient.SupabaseException ex) {
 			showError("Could not load employees: " + ex.getMessage());
@@ -109,7 +102,7 @@ public class UserAdmin extends JFrame {
 			JOptionPane.showMessageDialog(null, "Please enter new account system role.", "Input Error", JOptionPane.WARNING_MESSAGE);
 			return false;
 		}
-		String role = "Admin".equals(comboBoxSystemRole.getSelectedItem()) ? "admin" : "employee";
+		String role = "HR Admin".equals(comboBoxSystemRole.getSelectedItem()) ? "hr_admin" : "employee";
 
 		try {
 			AdminAccountService.create(newEmp, newPass, role);
@@ -208,7 +201,7 @@ public class UserAdmin extends JFrame {
 		panel.add(lblEnterSystemRole);
 		
 		comboBoxSystemRole = new JComboBox(new Object[]{});
-		comboBoxSystemRole.setModel(new DefaultComboBoxModel(new String[] {"---", "Admin", "User"}));
+		comboBoxSystemRole.setModel(new DefaultComboBoxModel(new String[] {"---", "HR Admin", "Employee"}));
 		comboBoxSystemRole.setBounds(188, 82, 197, 22);
 		panel.add(comboBoxSystemRole);
 		

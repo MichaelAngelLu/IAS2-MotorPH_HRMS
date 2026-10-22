@@ -52,7 +52,7 @@ public final class EmployeeRepository {
     public static void update(int employeeNumber, String fname, String lname, String bday,
                               String address, String phone, String status,
                               String position, String supervisor) {
-        SessionManager.requireRole("admin");
+        SessionManager.requireRole("hr_admin");
         JsonObject b = new JsonObject();
         b.addProperty("first_name", fname);
         b.addProperty("last_name", lname);
@@ -74,7 +74,7 @@ public final class EmployeeRepository {
      * timesheets or leave records (see the notes: decide between cascade or soft-delete).
      */
     public static void delete(int employeeNumber) {
-        SessionManager.requireRole("admin");
+        SessionManager.requireRole("hr_admin");
         JsonArray gone = SupabaseClient.request("DELETE",
                 "/rest/v1/employees?employee_id=eq." + employeeNumber,
                 null, SessionManager.token(), true).getAsJsonArray();
